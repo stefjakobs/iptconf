@@ -1,0 +1,6 @@
+#!/bin/sh
+
+exec >/var/log/iptconf.log 2>&1
+echo $0
+set -x
+/usr/sbin/iptconf -v

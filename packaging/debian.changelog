@@ -1,0 +1,23 @@
+iptconf (1.2.1) natty; urgency=low
+
+* Rework of sysvinit script for RPM systems
+
+-- Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>  Mon, 28 Apr 2014 00:49:51 +0100
+
+iptconf (1.2) natty; urgency=low
+
+* Fix: rules are not generated properly for hosts with ipv4 and ipv6 addresses
+
+-- Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>  Fri, 13 Dec 2013 00:49:51 +0100
+
+iptconf (1.1) natty; urgency=low
+
+  * add dir /etc/ipt.conf.d/ for custom rules
+
+ -- Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>  Fri, 04 Feb 2013 00:49:51 +0100
+
+iptconf (1.0) natty; urgency=low
+
+  * Initial release.
+
+ -- Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>  Fri, 23 Nov 2012 00:49:51 +0100

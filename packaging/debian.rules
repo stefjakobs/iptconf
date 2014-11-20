@@ -1,0 +1,104 @@
+#!/usr/bin/make -f
+# Sample debian/rules that uses debhelper.
+# GNU copyright 1997 to 1999 by Joey Hess.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# This is the debhelper compatibility version to use.
+export DH_COMPAT=5
+
+CFLAGS = -g
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+CFLAGS += -O0
+else
+CFLAGS += -O2
+endif
+
+build: build-stamp
+build-stamp:
+	dh_testdir
+
+	# Add here commands to compile the package.
+	#./configure
+	#make all
+	# --- end custom part for compiling
+
+	touch build-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp
+
+	# Add here commands to clean up after the build process.
+	make clean || true
+	# --- end custom part for cleaning up
+
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+
+	# Add here commands to install the package
+	# The DESTDIR Has To Be Exactly  /usr/src/packages/BUILD/debian/<nameOfPackage>
+	export name=iptconf; \
+	export buildroot=/usr/src/packages/BUILD/debian/$${name}; \
+	export _bindir=/usr/bin; \
+	export _sbindir=/usr/sbin; \
+	export _sysconfdir=/etc; \
+	export _docdir=/usr/share/doc/$${name}; \
+	export _mandir=/usr/share/man ; \
+	install -Dm755 $${name} $${buildroot}/$${_sbindir}/$${name} ; \
+	install -Dm755 $${name}.f $${buildroot}/usr/lib/$${name}/$${name}.f ; \
+	install -Dm644 ipt.conf $${buildroot}/$${_sysconfdir}/ipt.conf ; \
+	install -dm755 $${buildroot}/$${_sysconfdir}/ipt.conf.d ; \
+	install -Dm644 $${name}.8 $${buildroot}/$${_mandir}/man8/$${name}.8 ; \
+	install -Dm755 $${name}.if-up $${buildroot}/$${_sysconfdir}/network/if-up.d/$${name} ; \
+	install -Dm644 $${name}.logrotate $${buildroot}/$${_sysconfdir}/logrotate.d/$${name} ; \
+	sed -i 's/640 root log/640 root adm/' $${buildroot}/$${_sysconfdir}/logrotate.d/$${name} ; \
+
+	# we don't have an init script yet
+
+
+	# --- end custom part for installing
+
+# Build architecture-independent files here.
+binary-indep: build install
+	# We have nothing to do by default.
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+#  dh_installdebconf
+	dh_installdocs
+	dh_installexamples
+	dh_installmenu
+#  dh_installlogrotate
+#  dh_installemacsen
+#  dh_installpam
+#  dh_installmime
+#  dh_installinit
+	dh_installcron
+	dh_installman
+	dh_installinfo
+#  dh_undocumented
+	dh_installchangelogs
+	dh_link
+	dh_strip
+	dh_compress
+	dh_fixperms
+#  dh_makeshlibs
+	dh_installdeb
+#  dh_perl
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install

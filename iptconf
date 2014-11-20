@@ -1,0 +1,101 @@
+#!/bin/bash
+
+#####################################################################
+# Copyright (c) 2014 Stefan Jakobs
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use, copy,
+# modify, merge, publish, distribute, sublicense, and/or sell copies
+# of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#####################################################################
+
+# see also: 
+# http://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO.html
+
+# functions:
+source /usr/lib/iptconf/iptconf.f || { 
+   echo "failed to source iptconf functions (/usr/lib/iptconf/iptconf.f)";
+   exit 1;
+}
+
+# ip46tables : iptables ipv4+ipv6
+  
+# INPUT :      iptables chain INPUT ipv4+ipv6
+# OUTPUT :     iptables chain OUTPUT ipv4+ipv6
+# FORWARD :    iptables chain FORWARD ipv4+ipv6
+
+# INPUT4 :     iptables chain INPUT ipv4
+# OUTPUT4 :    iptables chain OUTPUT ipv4
+# FORWARD4 :   iptables chain FORWARD ipv4
+
+# INPUT6 :     iptables chain INPUT ipv6
+# OUTPUT6 :    iptables chain OUTPUT ipv6
+# FORWARD6 :   iptables chain FORWARD ipv6
+
+if [[ ! $(ip r) =~ "default via" ]]; then
+  verbose "$0: skipping because no default route"
+  exit
+fi
+
+# clear tables
+ip46tables -F
+ip46tables -X
+
+# default
+ip46tables -P INPUT   ACCEPT
+ip46tables -P OUTPUT  ACCEPT
+ip46tables -P FORWARD DROP
+
+if  [ x"$1" = x--stop ]; then 
+  iptables -L
+  exit
+fi
+
+# log new tcp connections
+ip46tables -N LOGACCEPT 2>/dev/null
+ip46tables -A LOGACCEPT -p tcp --syn -j LOG --log-prefix "CONNECT: "
+ip46tables -A LOGACCEPT -j ACCEPT
+ip46tables -N LOGREJECT 2>/dev/null
+ip46tables -A LOGREJECT -p tcp --syn -j LOG --log-prefix "REJECT: "
+ip46tables -A LOGREJECT -p tcp --syn -j REJECT
+ip46tables -A LOGREJECT -j DROP
+ip46tables -N LOGDROP 2>/dev/null
+ip46tables -A LOGDROP -p tcp --syn -j LOG --log-prefix "DROP: "
+ip46tables -A LOGDROP -j DROP
+
+# allow established connections bidirectional
+INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+INPUT4 -p icmp   -j ACCEPT 
+INPUT6 -p icmpv6 -j ACCEPT 
+
+# localhost
+INPUT4 -s 127.0.0.0/8 -i lo -j ACCEPT
+INPUT6 -s ::/64       -i lo -j ACCEPT
+
+source /etc/ipt.conf
+if ls /etc/ipt.conf.d/*.conf &>/dev/null; then
+   for conf in /etc/ipt.conf.d/*.conf ; do
+      source $conf
+   done
+fi
+
+# default: reject all new connections
+INPUT -j LOGREJECT
+

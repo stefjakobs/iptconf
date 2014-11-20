@@ -1,0 +1,13 @@
+Source: iptconf
+Section: universe/system 
+Priority: optional
+Maintainer: Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>
+Build-Depends: debhelper (>= 4.1.16)
+
+Package: iptconf
+Architecture: any
+Depends: ${shlibs:Depends}, bash, iptables, logrotate
+Conflicts: ufw, apf-firewall
+Description: configure iptables 
+  iptconf is a bash script which sets the firewall while starting a network
+  interface. Its syntax is similar to iptables.
