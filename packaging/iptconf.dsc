@@ -2,7 +2,7 @@ Format: 1.0
 Source: iptconf 
 Version: 1.2-1 
 Binary: iptconf 
-Maintainer: Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>
+Maintainer: Stefan Jakobs <projects AT localside.net>
 Architecture: any
 Build-Depends: debhelper (>= 4.1.16)
 Files: 

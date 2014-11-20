@@ -11,7 +11,7 @@ Summary:          Iptables configuration
 
 Group:            Productivity/Networking/Security
 License:          GPL-2.0
-URL:              http://fex.rus.uni-stuttgart.de/iptconf.html
+URL:              https://github.com/stefjakobs/iptconf
 Source0:          %{name}-%{version}.tar.gz
 BuildRoot:        %{_tmppath}/%{name}-%{version}-build
 BuildArch:        noarch
@@ -126,11 +126,11 @@ install -d -m755 $RPM_BUILD_ROOT/%{_sysconfdir}/ipt.conf.d
 
 
 %changelog
-* Mon Apr 28 2014 Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de> - 1.2.1
+* Mon Apr 28 2014 Stefan Jakobs <projects AT localside.net> - 1.2.1
 - rework of sysVinit script: iptconf (while stopping disable ipv6, too)
-* Fri Dec 13 2013 Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de> - 1.2
+* Fri Dec 13 2013 Stefan Jakobs <projects AT localside.net> - 1.2
 - mv iptconf.f into /usr/lib/iptconf/
-* Mon Apr 08 2013 Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de> - 1.1
+* Mon Apr 08 2013 Stefan Jakobs <projects AT localside.net> - 1.1
 - add /etc/ipt.conf.d/ for custom rules
-* Fri Nov 23 2012 Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de> - 1.0
+* Fri Nov 23 2012 Stefan Jakobs <projects AT localside.net> - 1.0
 - Initial version

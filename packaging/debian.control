@@ -1,7 +1,7 @@
 Source: iptconf
 Section: universe/system 
 Priority: optional
-Maintainer: Stefan Jakobs <stefan.jakobs@rus.uni-stuttgart.de>
+Maintainer: Stefan Jakobs <projects AT localside.net>
 Build-Depends: debhelper (>= 4.1.16)
 
 Package: iptconf
