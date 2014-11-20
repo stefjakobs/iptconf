@@ -1,0 +1,3 @@
+# default: reject all new connections
+INPUT -j LOGREJECT
+

@@ -1,0 +1,4 @@
+#
+# enable loading of last saved rules:
+#
+LOADFAST=yes

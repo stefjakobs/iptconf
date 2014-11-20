@@ -25,17 +25,23 @@
 #
 #####################################################################
 
-# see also: 
+# see also:
 # http://www.netfilter.org/documentation/HOWTO/packet-filtering-HOWTO.html
 
+# make sure we've always got the same directory order
+export LC_ALL=C
+
 # functions:
-source /usr/lib/iptconf/iptconf.f || { 
-   echo "failed to source iptconf functions (/usr/lib/iptconf/iptconf.f)";
-   exit 1;
+source /usr/lib/iptconf.f || {
+    echo "failed to source iptconf functions (/usr/lib/iptconf.f)";
+    exit 1;
 }
 
+# load defaults ...
+[ -f /etc/default/iptconf ] && source /etc/default/iptconf
+
 # ip46tables : iptables ipv4+ipv6
-  
+
 # INPUT :      iptables chain INPUT ipv4+ipv6
 # OUTPUT :     iptables chain OUTPUT ipv4+ipv6
 # FORWARD :    iptables chain FORWARD ipv4+ipv6
@@ -49,53 +55,70 @@ source /usr/lib/iptconf/iptconf.f || {
 # FORWARD6 :   iptables chain FORWARD ipv6
 
 if [[ ! $(ip r) =~ "default via" ]]; then
-  verbose "$0: skipping because no default route"
-  exit
+    verbose "$0: skipping because no default route"
+    exit
+fi
+# check whether or not we have a save file for ip6tables and iptables
+
+. /usr/share/iptconf.reset
+
+if  [ x"$1" = x--stop ]; then
+    # echo current definition to STDOUT
+    iptables-save
+    ip6tables-save
+    exit
 fi
 
-# clear tables
-ip46tables -F
-ip46tables -X
+[ "$1" = "--fast" ] && LOADFAST=yes
 
-# default
-ip46tables -P INPUT   ACCEPT
-ip46tables -P OUTPUT  ACCEPT
-ip46tables -P FORWARD DROP
+if  [ "$LOADFAST" = "yes" -a -d /etc/ipt.conf.d -a -f /etc/ipt.conf ]; then
+    verbose "Loading firewall in fast mode. Checking for updated definitions."
 
-if  [ x"$1" = x--stop ]; then 
-  iptables -L
-  exit
+    [ -f /var/cache/iptconf/iptables-save -a -f /var/cache/iptconf/ip6tables-save ] && \
+        NEWER="$(find /etc/ipt.conf* -newer /var/cache/iptconf/iptables-save -o -newer /var/cache/iptconf/ip6tables-save)"
+    if [ -f /var/cache/iptconf/iptables-save -a -f /var/cache/iptconf/ip6tables-save -a -z "$NEWER" ];then
+        verbose "Firewall definition unchanged. Loading saved config."
+        . /usr/share/iptconf/iptconf.reset
+        if iptables-restore </var/cache/iptconf/iptables-save;then
+            verbose "Loading iptables-save successful"
+        else
+            echo "Loading iptables-restore FAILED!"
+            FAILED=1
+        fi
+        if ip6tables-restore < /var/cache/iptconf/ip6tables-save ; then
+		      verbose "Loading ip6tables-save successful"
+        else
+            echo "Loading ip6tables-restore FAILED!"
+            FAILED=1
+        fi
+        [ -z "$FAILED" ] && exit 1
+    elif cat /usr/share/iptconf/iptconf.reset /usr/share/iptconf/iptconf.header \
+             /etc/ipt.conf /etc/ipt.conf.d/*.conf /usr/share/iptconf/iptconf.footer | \
+             /usr/sbin/iptconfparser /var/cache/iptconf/iptables-save.tmp \
+             /var/cache/iptconf/ip6tables-save.tmp ; then
+        verbose "Firewall definition updated. Now loading firewall"
+        . /usr/share/iptconf/iptconf.reset
+        mv /var/cache/iptconf/iptables-save.tmp /var/cache/iptconf/iptables-save
+        vx iptables-restore </var/cache/iptconf/iptables-save
+        mv /var/cache/iptconf/ip6tables-save.tmp /var/cache/iptconf/ip6tables-save
+        vx ip6tables-restore </var/cache/iptconf/ip6tables-save
+        exit
+    else
+        echo 'Generating firewall rules failed! Continuing in regular mode...'
+    fi
 fi
 
-# log new tcp connections
-ip46tables -N LOGACCEPT 2>/dev/null
-ip46tables -A LOGACCEPT -p tcp --syn -j LOG --log-prefix "CONNECT: "
-ip46tables -A LOGACCEPT -j ACCEPT
-ip46tables -N LOGREJECT 2>/dev/null
-ip46tables -A LOGREJECT -p tcp --syn -j LOG --log-prefix "REJECT: "
-ip46tables -A LOGREJECT -p tcp --syn -j REJECT
-ip46tables -A LOGREJECT -j DROP
-ip46tables -N LOGDROP 2>/dev/null
-ip46tables -A LOGDROP -p tcp --syn -j LOG --log-prefix "DROP: "
-ip46tables -A LOGDROP -j DROP
-
-# allow established connections bidirectional
-INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-
-INPUT4 -p icmp   -j ACCEPT 
-INPUT6 -p icmpv6 -j ACCEPT 
-
-# localhost
-INPUT4 -s 127.0.0.0/8 -i lo -j ACCEPT
-INPUT6 -s ::/64       -i lo -j ACCEPT
-
-source /etc/ipt.conf
+. /usr/share/iptconf/iptconf.header
+. /etc/ipt.conf
 if ls /etc/ipt.conf.d/*.conf &>/dev/null; then
-   for conf in /etc/ipt.conf.d/*.conf ; do
-      source $conf
-   done
+    for conf in /etc/ipt.conf.d/*.conf ; do
+        . $conf
+    done
 fi
+. /usr/share/iptconf/iptconf.footer
 
-# default: reject all new connections
-INPUT -j LOGREJECT
-
+verbose iptables-save 
+iptables-save > /var/cache/iptconf/iptables-save
+verbose ip6tables-save 
+ip6tables-save > /var/cache/iptconf/ip6tables-save
+exit

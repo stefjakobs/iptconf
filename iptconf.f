@@ -38,8 +38,8 @@ PREROUTING6() { vx ip6tables -A PREROUTING "$@"; }
 
 # iptables ipv4+ipv6
 ip46tables() {
-  if [[ "$*" =~ " -s " || "$*" =~ "--source" || \
-        "$*" =~ " -d " || "$*" =~ "--destination" ]]; then
+  if [[ "$*" =~ " -s " || "$*" =~ "--source" || "$*" =~ "--src" || \
+        "$*" =~ " -d " || "$*" =~ "--destination" || "$*" =~ "--dst" ]]; then
     if ip4test "$@"; then
       vx iptables "$@"
     fi
@@ -55,8 +55,11 @@ ip46tables() {
 
 ip4test() {
   while [ "$1" ]; do
-    if [ x"$1" = x-s -o x"$1" = x-d ]; then
+    if [ x"$1" = x-s -o x"$1" = x--source -o x"$1" = x--src -o \
+        x"$1" = x-d -o x"$1" = x--destination -o x"$1" = x--dst ]; then
       shift
+      # FIXME: Does not work with several addresses, that are separated with
+      # commas.
       [[ "$1" =~ ^[0-9./]+$ || $(host -t a $1) =~ "has address" ]] && return 0
     fi
     shift
@@ -66,8 +69,11 @@ ip4test() {
 
 ip6test() {
   while [ -n "$1" ]; do
-    if [ x"$1" = x-s -o x"$1" = x-d ]; then
+    if [ x"$1" = x-s -o x"$1" = x--source -o x"$1" = x--src -o \
+        x"$1" = x-d -o x"$1" = x--destination -o x"$1" = x--dst ]; then
       shift
+      # FIXME: Does not work with several addresses, that are separated with
+      # commas.
       [[ "$1" =~ ^[0-9a-fA-F:/]+$ || $(host -t aaaa $1) =~ "has IPv6 address" ]] && return 0
     fi
     shift

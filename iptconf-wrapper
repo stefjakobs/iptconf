@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+# make sure we've always got the same directory order
+export LC_ALL=C
+
+if [ -d /etc/ipt.conf.d -a -f /etc/ipt.conf ];then
+	cat /usr/share/rus/iptconf.reset /usr/share/rus/iptconf.header \
+       /etc/ipt.conf /etc/ipt.conf.d/*.conf /usr/share/rus/iptconf.footer | \
+   /usr/sbin/iptconfparser /var/cache/rus/iptables-save.check /var/cache/rus/ip6tables-save.check
+fi

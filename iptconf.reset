@@ -1,0 +1,20 @@
+# Reset all tables by flushing all chains, deleting the user-defined chains and
+# resetting the policy of the default chains to the default values.
+# This helps getting a deterministic table order in the output of iptables-save.
+# The output order is the reverse order of the calls. This is needed for
+# tracking changes of the configuration files using a program, that generates
+# an iptables-save compatible output.
+#
+# table 'filter'
+ip46tables -F
+ip46tables -X
+ip46tables -P INPUT ACCEPT
+ip46tables -P OUTPUT ACCEPT
+ip46tables -P FORWARD ACCEPT
+#
+# table 'raw'
+ip46tables -t raw -F
+ip46tables -t raw -X
+ip46tables -t raw -P PREROUTING ACCEPT
+ip46tables -t raw -P OUTPUT ACCEPT
+

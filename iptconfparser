@@ -1,0 +1,134 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+# selfmade packages
+use IptConf::DebugLib qw(set_debug set_verbose d v i e);
+use IptConf::IptConf qw(expand);
+use IptConf::IptablesParser qw(generate_output);
+
+
+################################################################################
+#
+# Date: 2014-06-18
+# Author:
+# - Kilian Krause
+# - Daniel Tiebler
+#
+################################################################################
+#
+# This program can be used to track changes in configuration files, that are
+# used to configure the firewall using iptables or ip6tables.
+#
+# The workflow is pretty simple. Use a configuration file, that contains
+# ipt.conf special commands and calls to iptables or ip6tables, to configure the
+# firewall and than save this firewall configuration using iptables-save or
+# ip6tables-save. Running this program with the ipt.conf configuration file will
+# generate an output, that is compatible, that means except the comments, with
+# the output of iptables or ip6tables. Both outputs can be compared, so that
+# changes in the original configuration file can be tracked.
+#
+# This program works as follows:
+# * Read an ipt.conf file and expand the specific commands to calls to iptables
+#   or ip6tables.
+# * Parse these iptables and ip6tables command lines.
+# * Write an iptables-save and ip6tables-save compatible output to a file for
+#   each IP version separately.
+#
+# When specifying parameters for iptables and ip6tables be aware of obeying the
+# order for each extension: protocol, match and target. Their parameters have to
+# follow directly their specification, because otherwise the parameters will not
+# be recognized. However, mixing the paramters themselves and the parameters of
+# iptables and ip6tables is allowed.
+#
+# WARNING: This is not an exhaustive generator for iptables-save or
+#   ip6tables-save compatible files. DO NOT use its output with iptables-restore
+#   or ip6tables-restore to modify your firewall! On the one hand, it does not
+#   check the parameters, although some basic verification is done. On the other
+#   hand, it only supports a subset and is far away from beeing complete. That
+#   means, neither the functionality of iptables or ip6tables nor all match or
+#   target extensions are implemented and therefore not everything is processed
+#   properly. Again, do not use it to load the output into the kernel using
+#   iptables-restore or ip6tables-restore. Use it for comparing some output of
+#   iptables-save or ip6tables-save with modifications of scripts containing
+#   calls to iptables or ip6tables, that are normally loaded into the kernel.
+#
+################################################################################
+#
+# 2014-06-18, Daniel Tiebler
+# * Added comment about specifying the parameters.
+#
+# 2014-06-11, Daniel Tiebler
+# * Adapted call to expand() to new semantic.
+#
+# 2014-06-06, Daniel Tiebler
+# * Corrected packages names of use declaration.
+#
+# 2014-05-07, Daniel Tiebler
+# * Removed overlooked comment.
+# * Added description at the beginning.
+#
+# 2014-05-06, Daniel Tiebler
+# * The program was changed heavily, because the whole parsing was put into a
+#   module.
+# * Removed former change log entries.
+#
+################################################################################
+
+
+
+#set_debug(0);
+#set_verbose(1);
+
+
+
+# make sure we see it scroll.. ;-)
+$| = 1;
+
+my $usage = <<EOD;
+usage: $0 iptables-save.out ip6tables-save.out
+    Reads input from STDIN.
+EOD
+my $ip4tables_out = shift @ARGV or die $usage;
+my $ip6tables_out = shift @ARGV or die $usage;
+
+my @lines = ();
+my $line;
+while (defined($line = <STDIN>)) {
+    next if ($line =~ m/^\s*$/); # ignore blank lines
+    next if ($line =~ m/^\s*#/); # ignore comments
+    push(@lines, $line);
+}
+
+my $lines_ipv4; # reference to array
+my $lines_ipv6; # reference to array
+# 'ipt.conf' -> 'iptables'
+($lines_ipv4, $lines_ipv6) = expand(\@lines);
+if (! defined($lines_ipv4) || ! defined($lines_ipv6)) {
+    die('Call to expand() was not successful.');
+}
+
+# Generate iptables-save compatible output.
+$lines_ipv4 = generate_output($lines_ipv4);
+if (! defined($lines_ipv4)) {
+    die('Call to generate_output() for IPv4 was not successful.');
+}
+$lines_ipv6 = generate_output($lines_ipv6, 'IPv6');
+if (! defined($lines_ipv6)) {
+    die('Call to generate_output() for IPv6 was not successful.');
+}
+
+# Write output for IPv4.
+open (IP4TABLES, '>', $ip4tables_out);
+for (my $i = 0; $i < scalar(@{$lines_ipv4}); $i++) {
+    print IP4TABLES $lines_ipv4->[$i];
+}
+close(IP4TABLES);
+
+# Write output for IPv6.
+open (IP6TABLES, '>', $ip6tables_out);
+for (my $i = 0; $i < scalar(@{$lines_ipv6}); $i++) {
+    print IP6TABLES $lines_ipv6->[$i];
+}
+close(IP6TABLES);

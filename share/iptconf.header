@@ -1,0 +1,22 @@
+# log new tcp connections
+ip46tables -N LOGACCEPT
+ip46tables -A LOGACCEPT -p tcp --syn -j LOG --log-prefix "CONNECT: "
+ip46tables -A LOGACCEPT -j ACCEPT
+ip46tables -N LOGREJECT
+ip46tables -A LOGREJECT -p tcp --syn -j LOG --log-prefix "REJECT: "
+ip46tables -A LOGREJECT -p tcp --syn -j REJECT
+ip46tables -A LOGREJECT -j DROP
+ip46tables -N LOGDROP
+ip46tables -A LOGDROP -p tcp --syn -j LOG --log-prefix "DROP: "
+ip46tables -A LOGDROP -j DROP
+
+# allow established connections bidirectional
+INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+INPUT4 -p icmp   -j ACCEPT
+INPUT6 -p icmpv6 -j ACCEPT
+
+# localhost
+INPUT4 -s 127.0.0.0/8 -i lo -j ACCEPT
+INPUT6 -s ::/64       -i lo -j ACCEPT
+
