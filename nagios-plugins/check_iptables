@@ -1,0 +1,151 @@
+#!/bin/bash
+
+# make sure we've always got the same directory order
+export LC_ALL=C
+
+FIREWALL=$(sudo -n /sbin/iptables -S|grep '^-P')
+IP6FIREWALL=$(sudo -n /sbin/ip6tables -S|grep '^-P')
+
+EMPTY="-P INPUT ACCEPT
+-P FORWARD ACCEPT
+-P OUTPUT ACCEPT"
+
+declare -A SHALLFORWARD
+declare -A ISFORWARDINGV4
+declare -A ISFORWARDINGV6
+if [ "$1" = "--ipv4" ];then
+	FORWARDIPv4ONLY=1
+	shift
+fi
+if [ "$1" = "--forwarding" ];then
+	if [ "$(sysctl -n net.ipv4.ip_forward)" -ne "1" ];then
+		echo "IPTABLES CRITICAL: IPv4 forwarding not enabled but required!"
+		exit 2
+	fi
+	shift
+	FORWARDREQUIRED="$@"
+	while [ ! -z "$1" ];do
+		SHALLFORWARD[$1]=1
+		shift
+	done
+fi
+
+HASIP4=$(ip -4 a|grep 'inet ')
+HASIP6=$(ip -6 a|grep 'inet6 2001')
+
+FORWARDING=""
+if [ ! -z "$HASIP4" ];then
+	# on Debian stable we can do: /sbin/sysctl -a -n -r 'net.ipv4.conf.*.forwarding' 2>/dev/null
+	# Ubuntu seems to not have this.. so we brute force..
+       	while read line;do
+		INTERFACE=${line#net.ipv4.conf.}
+		INTERFACE=${INTERFACE%.forwarding*}
+		STATE=${line#* = }
+		if [ "$INTERFACE" != "all" -a "$INTERFACE" != "default" -a "$INTERFACE" != "lo" ];then
+			if [ "$STATE" = "1" ];then
+				ISFORWARDINGV4[$INTERFACE]=1
+			fi
+			if [ "$STATE" != "${SHALLFORWARD[$INTERFACE]}" -a ! -z "${SHALLFORWARD[$INTERFACE]}" ];then
+				MISMATCH="$MISMATCH $INTERFACE(IPv4 is: $STATE)"
+			elif [ "$STATE" = "1" -a -z "${SHALLFORWARD[$INTERFACE]}" ];then
+				MISMATCH="$MISMATCH $INTERFACE(IPv4 forwarding but shouldn't)"
+			fi
+		fi
+	done < <(/sbin/sysctl -a 2>/dev/null|egrep '^net\.ipv4\.conf\..*\.forwarding = ')
+fi
+IP6FORWARDING=""
+if [ ! -z "$HASIP6" ];then
+        while read line;do
+		INTERFACE=${line#net.ipv6.conf.}
+		INTERFACE=${INTERFACE%.forwarding*}
+		STATE=${line#* = }
+		if [ "$INTERFACE" != "all" -a "$INTERFACE" != "default" -a "$INTERFACE" != "lo" ];then
+			if [ ! -z "$FORWARDIPv4ONLY" ];then
+				FWDIFIPv6=0
+			else
+				FWDIFIPv6=${SHALLFORWARD[$INTERFACE]}
+				if [ "$STATE" = "1" ];then
+					ISFORWARDINGV6[$INTERFACE]=1
+				fi
+			fi
+			if [ "$STATE" != "$FWDIFIPv6" -a ! -z "$FWDIFIPv6" ];then
+				MISMATCH="$MISMATCH $INTERFACE(IPv6 is: $STATE)"
+			elif [ "$STATE" = "1" -a -z "$FWDIFIPv6" ];then
+				MISMATCH="$MISMATCH $INTERFACE(IPv6 forwarding but shouldn't)"
+			fi
+		fi
+	done < <(/sbin/sysctl -a 2>/dev/null|egrep '^net\.ipv6\.conf\..*\.forwarding = ')
+fi
+
+if [ "$FIREWALL" = "$EMPTY" -a ! -z "$HASIP4" ];then
+	echo "IPTABLES CRITICAL: IPv4 firewall not loaded and still in default bootup config!"
+	exit 2
+elif [ "$IP6FIREWALL" = "$EMPTY" -a ! -z "$HASIP6" ];then
+	echo "IPTABLES CRITICAL: IPv6 firewall not loaded and still in default bootup config!"
+	exit 2
+fi
+
+if [ "${#SHALLFORWARD[*]}" -ne "${#ISFORWARDINGV4[*]}" -o -z "$FORWARDIPv4ONLY" -a "${#SHALLFORWARD[*]}" -ne "${#ISFORWARDINGV6[*]}" ];then
+	echo "IPTABLES CRITICAL: Not all required interfaces (not) forwarding. Should be \"$FORWARDREQUIRED\" - mismatch:$MISMATCH"
+	exit 2
+fi
+
+INPUTPOLICY=$(echo "$FIREWALL"|sed -n -e 's,-P INPUT \(.*\),\1,p')
+INPUT6POLICY=$(echo "$IP6FIREWALL"|sed -n -e 's,-P INPUT \(.*\),\1,p')
+OUTPUTPOLICY=$(echo "$FIREWALL"|sed -n -e 's,-P OUTPUT \(.*\),\1,p')
+OUTPUT6POLICY=$(echo "$IP6FIREWALL"|sed -n -e 's,-P OUTPUT \(.*\),\1,p')
+FORWARDPOLICY=$(echo "$FIREWALL"|sed -n -e 's,-P FORWARD \(.*\),\1,p')
+FORWARD6POLICY=$(echo "$IP6FIREWALL"|sed -n -e 's,-P FORWARD \(.*\),\1,p')
+
+if [ ! -z "$FORWARDING" -a ! -z "$HASIP4" -a "$FORWARDPOLICY" != "DROP" ];then
+	echo "IPTABLES CRITICAL: IPv4 forwarding enabled and firewall default policy ACCEPT!"
+	exit 2
+elif [ ! -z "$IP6FORWARDING" -a ! -z "$HASIP6" -a "$FORWARD6POLICY" != "DROP" ];then
+	echo "IPTABLES CRITICAL: IPv6 forwarding enabled and firewall default policy ACCEPT!"
+	exit 2
+elif [ ! -z "$HASIP4" -a "$INPUTPOLICY" != "DROP" ];then
+	echo "IPTABLES CRITICAL: IPv4 firewall default policy in INPUT is ACCEPT!"
+	exit 2
+elif [ ! -z "$HASIP6" -a "$INPUT6POLICY" != "DROP" ];then
+	echo "IPTABLES CRITICAL: IPv6 firewall default policy in INPUT is ACCEPT!"
+	exit 2
+elif [ ! -z "$HASIP4" -a "$OUTPUTPOLICY" != "DROP" ];then
+	echo "IPTABLES CRITICAL: IPv4 firewall default policy in OUTPUT is ACCEPT!"
+	exit 2
+elif [ ! -z "$HASIP6" -a "$OUTPUT6POLICY" != "DROP" ];then
+	echo "IPTABLES CRITICAL: IPv6 firewall default policy in OUTPUT is ACCEPT!"
+	exit 2
+fi
+
+if [ -x /usr/sbin/iptconf-wrapper ];then
+	# if we have rus-iptconf installed, let's try to find out what firewall state we're in
+	# 1. step: generate our save files from what our config reads right now
+	WRAPPER=$(sudo -n -u root /usr/sbin/iptconf-wrapper 2>&1)
+	if [ ! -z "$WRAPPER" ];then
+		echo "IPTABLES WARNING: IptConfParser has output mismatching lines in config|"
+		echo "|$WRAPPER"
+		exit 1
+	fi
+	# 2. step: checkout iptables from running kernel and diff it...
+	TMPDIR=$(mktemp -d)
+	sudo -n -u root /sbin/iptables-save |grep -v '^#' | sed -e 's,^\(:.*\s\)\[[0-9:]\+\]$,\1[0:0],' >$TMPDIR/iptables-save
+	IPTDIFF=$(diff /var/cache/rus/iptables-save.check $TMPDIR/iptables-save)
+	if [ ! -z "$IPTDIFF" ];then
+		echo "IPTABLES CRITICAL: Running IPv4 firewall has diff with its definition!|"
+		echo "|$IPTDIFF"
+		rm -rf $TMPDIR
+		exit 2
+	fi
+	# 3. step: checkout ip6tables from running kernel and diff it...
+	sudo -n -u root /sbin/ip6tables-save |grep -v '^#' | sed -e 's,^\(:.*\s\)\[[0-9:]\+\]$,\1[0:0],' >$TMPDIR/ip6tables-save
+	IP6TDIFF=$(diff /var/cache/rus/ip6tables-save.check $TMPDIR/ip6tables-save)
+	rm -rf $TMPDIR
+	if [ ! -z "$IP6TDIFF" ];then
+		echo "IPTABLES CRITICAL: Running IPv6 firewall has diff with its definition!|"
+		echo "|$IP6TDIFF"
+		exit 2
+	fi
+fi
+
+echo "IPTABLES OK: Minimal firewalling requirements met."
+exit 0
