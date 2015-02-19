@@ -1,0 +1,46 @@
+##
+### THIS FILE IS UNDER PUPPET CONTROL. DON'T EDIT IT HERE.
+##
+
+# <%= description %>
+<%- unless notarule -%>
+  <%- if @used_protos.is_a? Array -%>
+    <%- @used_protos.each do |proto| -%>
+      <%- if @dports.is_a? Array -%>
+        <%- @dports.each do |dport| -%>
+<%# multi proto, multi dport set, no source -%>
+<%= chain %> -p <%= proto %> --dport <%= dport %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> -p <%= proto %> --dport <%= dport %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+        <%- end -%>
+      <%- elsif @dports != '' -%>
+<%# multi proto, single dport set, no source -%>
+<%= chain %> -p <%= proto %> --dport <%= dports %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> -p <%= proto %> --dport <%= dports %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+      <%- else -%>
+<%# multi proto set, no source, dport -%>
+<%= chain %> -p <%= proto %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> -p <%= proto %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+      <%- end -%>
+    <%- end -%>
+  <%- elsif @used_protos != '' -%>
+    <%- if @dports.is_a? Array -%>
+      <%- @dports.each do |dport| -%>
+<%# single proto, multi dport set, no source -%>
+<%= chain %> -p <%= used_protos %> --dport <%= dport %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> -p <%= used_protos %> --dport <%= dport %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+      <%- end -%>
+    <%- elsif @dports != '' -%>
+<%# single proto, single dport set, no source -%>
+<%= chain %> -p <%= used_protos %> --dport <%= dports %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> -p <%= used_protos %> --dport <%= dports %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+    <%- else -%>
+<%# single proto set, no source, dport -%>
+<%= chain %> -p <%= used_protos %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> -p <%= used_protos %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+    <%- end -%>
+  <%- else -%>
+<%# no source, no used_protos, dport -%>
+<%= chain %> <%= args %> -m state --state NEW -m recent --set
+<%= chain %> <%= args %> -m state --state NEW -m recent --update --seconds <%= limit_interval %> --hitcount <%= limit_hitcount %> -j <%= target %>
+  <%- end -%>
+<% end -%>

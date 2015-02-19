@@ -1,0 +1,9 @@
+##
+### THIS FILE IS UNDER PUPPET CONTROL. DON'T EDIT IT HERE.
+##
+
+# munin ip_ plugin firewall rule to make sure netfilter has all data we need to plot in the munin plugin
+# there is no jump target on purpose here since we only want the tracking!
+#
+ip<%= version %>tables -I OUTPUT -s <%= address %>
+ip<%= version %>tables -I INPUT -d <%= address %>

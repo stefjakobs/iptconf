@@ -1,0 +1,17 @@
+##
+### THIS FILE IS UNDER PUPPET CONTROL. DON'T EDIT IT HERE.
+##
+
+# munin ipt_accounting_ plugin firewall rule to make sure netfilter has all data we need to plot in the munin plugin
+# there is no jump target on purpose here since we only want the tracking!
+#
+# let's catch all traffic first ...
+ip<%= version %>tables -A ACC-out -s <%= address %> -m comment --comment 'ACC-all-<%= name %>'
+ip<%= version %>tables -A ACC-out -p tcp -s <%= address %> -m comment --comment 'ACC-all-<%= name %>_tcp'
+ip<%= version %>tables -A ACC-out -p udp -s <%= address %> -m comment --comment 'ACC-all-<%= name %>_udp'
+ip<%= version %>tables -A ACC-out -p icmp -s <%= address %> -m comment --comment 'ACC-all-<%= name %>_icmp'
+ip<%= version %>tables -A ACC-in -d <%= address %> -m comment --comment 'ACC-all-<%= name %>'
+ip<%= version %>tables -A ACC-in -p tcp -d <%= address %> -m comment --comment 'ACC-all-<%= name %>_tcp'
+ip<%= version %>tables -A ACC-in -p udp -d <%= address %> -m comment --comment 'ACC-all-<%= name %>_udp'
+ip<%= version %>tables -A ACC-in -p icmp -d <%= address %> -m comment --comment 'ACC-all-<%= name %>_icmp'
+

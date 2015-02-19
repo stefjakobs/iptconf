@@ -1,0 +1,143 @@
+##
+### THIS FILE IS UNDER PUPPET CONTROL. DON'T EDIT IT HERE.
+##
+
+<%- if @description -%>
+# <%= description %>
+<%- end -%>
+<%- unless notarule -%>
+<%- unless @srcarray.empty? or @srcarray == [''] -%>
+  <%- @srcarray.each do |source| -%>
+    <%- unless @dstarray.empty? or @dstarray == [''] -%>
+      <%- @dstarray.each do |dst| -%>
+        <%- unless @used_protos.empty? or @used_protos == [''] -%>
+          <%- @used_protos.each do |proto| -%>
+            <%- unless @dportarray.empty? or @dportarray == [''] -%>
+              <%- @dportarray.each do |dport| -%>
+                <%- unless @sportarray.empty? or @sportarray == [''] -%>
+                  <%- @sportarray.each do |sport| -%>
+<%# source, dest, proto, dport, sport set -%>
+<%= chain %> -s <%= source %> -d <%= dst %> -p <%= proto %> --dport <%= dport %> --sport <%= sport %> <%= args %> -j <%= target %>
+                  <%- end -%>
+                <%- else -%>
+<%# source, dest, proto, dport set, no sport -%>
+<%= chain %> -s <%= source %> -d <%= dst %> -p <%= proto %> --dport <%= dport %> <%= args %> -j <%= target %>
+                <%- end -%>
+              <%- end -%>
+            <%- else -%>
+              <%- unless @sportarray.empty? or @sportarray == [''] -%>
+                <%- @sportarray.each do |sport| -%>
+<%# source, dest, proto, sport set, no dport -%>
+<%= chain %> -s <%= source %> -d <%= dst %> -p <%= proto %> --sport <%= sport %> <%= args %> -j <%= target %>
+                <%- end -%>
+              <%- else -%>
+<%# source, dest, proto set, no dport, sport -%>
+<%= chain %> -s <%= source %> -d <%= dst %> -p <%= proto %> <%= args %> -j <%= target %>
+              <%- end -%>
+            <%- end -%>
+          <%- end -%>
+        <%- else -%>
+<%# source, dest set, no proto, dport, sport -%>
+<%= chain %> -s <%= source %> -d <%= dst %> <%= args %> -j <%= target %>
+        <%- end -%>
+      <%- end -%>
+    <%- else -%>
+      <%- unless @used_protos.empty? or @used_protos == [''] -%>
+        <%- @used_protos.each do |proto| -%>
+          <%- unless @dportarray.empty? or @dportarray == [''] -%>
+            <%- @dportarray.each do |dport| -%>
+              <%- unless @sportarray.empty? or @sportarray == [''] -%>
+                <%- @sportarray.each do |sport| -%>
+<%# source, proto, dport, sport set, no dest -%>
+<%= chain %> -s <%= source %> -p <%= proto %> --dport <%= dport %> --sport <%= sport %> <%= args %> -j <%= target %>
+                <%- end -%>
+              <%- else -%>
+<%# source, proto, dport set, no dest, sport -%>
+<%= chain %> -s <%= source %> -p <%= proto %> --dport <%= dport %> <%= args %> -j <%= target %>
+              <%- end -%>
+            <%- end -%>
+          <%- else -%>
+            <%- unless @sportarray.empty? or @sportarray == [''] -%>
+              <%- @sportarray.each do |sport| -%>
+<%# source, proto, sport set, no dest, dport -%>
+<%= chain %> -s <%= source %> -p <%= proto %> --sport <%= sport %> <%= args %> -j <%= target %>
+              <%- end -%>
+            <%- else -%>
+<%# source, proto set, no dest, dport, sport -%>
+<%= chain %> -s <%= source %> -p <%= proto %> <%= args %> -j <%= target %>
+            <%- end -%>
+          <%- end -%>
+        <%- end -%>
+      <%- else -%>
+<%# source set, no dest, used_protos, dport, sport -%>
+<%= chain %> -s <%= source %> <%= args %> -j <%= target %>
+      <%- end -%>
+    <%- end -%>
+  <%- end -%>
+<%- else -%>
+  <%- unless @dstarray.empty? or @dstarray == ['']-%>
+    <%- @dstarray.each do |dst| -%>
+      <%- unless @used_protos.empty? or @used_protos == [''] -%>
+        <%- @used_protos.each do |proto| -%>
+          <%- unless @dportarray.empty? or @dportarray == [''] -%>
+            <%- @dportarray.each do |dport| -%>
+              <%- unless @sportarray.empty? or @sportarray == [''] -%>
+                <%- @sportarray.each do |sport| -%>
+<%# dest, proto, dport, sport set, no source -%>
+<%= chain %> -d <%= dst %> -p <%= proto %> --dport <%= dport %> --sport <%= sport %> <%= args %> -j <%= target %>
+                <%- end -%>
+              <%- else -%>
+<%# dest, proto, dport set, no source, sport -%>
+<%= chain %> -d <%= dst %> -p <%= proto %> --dport <%= dport %> <%= args %> -j <%= target %>
+              <%- end -%>
+            <%- end -%>
+          <%- else -%>
+            <%- unless @sportarray.empty? or @sportarray == [''] -%>
+              <%- @sportarray.each do |sport| -%>
+<%# dest, proto, sport set, no dport, source -%>
+<%= chain %> -d <%= dst %> -p <%= proto %> --sport <%= sport %> <%= args %> -j <%= target %>
+              <%- end -%>
+<%# dest, proto set, no source, dport, sport -%>
+<%= chain %> -d <%= dst %> -p <%= proto %> <%= args %> -j <%= target %>
+            <%- end -%>
+          <%- end -%>
+        <%- end -%>
+      <%- else -%>
+<%# dest set, no source, used_protos, dport, sport -%>
+<%= chain %> -d <%= dst %> <%= args %> -j <%= target %>
+      <%- end -%>
+    <%- end -%>
+  <%- else -%>
+    <%- unless @used_protos.empty? or @used_protos == [''] -%>
+      <%- @used_protos.each do |proto| -%>
+        <%- unless @dportarray.empty? or @dportarray == [''] -%>
+          <%- @dportarray.each do |dport| -%>
+            <%- unless @sportarray.empty? or @sportarray == [''] -%>
+              <%- @sportarray.each do |sport| -%>
+<%# proto, dport, sport set, no source, dest -%>
+<%= chain %> -p <%= proto %> --dport <%= dport %> --sport <%= sport %> <%= args %> -j <%= target %>
+              <%- end -%>
+            <%- else -%>
+<%# proto, dport set, no source, dest, sport -%>
+<%= chain %> -p <%= proto %> --dport <%= dport %> <%= args %> -j <%= target %>
+            <%- end -%>
+          <%- end -%>
+        <%- else -%>
+          <%- unless @sportarray.empty? or @sportarray == [''] -%>
+            <%- @sportarray.each do |sport| -%>
+<%# proto, sport set, no source, dest, dport -%>
+<%= chain %> -p <%= proto %> --sport <%= sport %> <%= args %> -j <%= target %>
+            <%- end -%>
+          <%- else -%>
+<%# proto set, no source, dest, dport, sport -%>
+<%= chain %> -p <%= proto %> <%= args %> -j <%= target %>
+          <%- end -%>
+        <%- end -%>
+      <%- end -%>
+    <%- else -%>
+<%# no source, dest, used_protos, dport, sport -%>
+<%= chain %> <%= args %> -j <%= target %>
+    <%- end -%>
+  <%- end -%>
+<% end -%>
+<% end -%>
